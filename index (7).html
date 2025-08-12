@@ -252,12 +252,8 @@ btnExport.addEventListener("click", async ()=>{
       parts.push(new docx.Paragraph({}));
     }
     parts.push(new docx.Table({ rows:[ new docx.TableRow({ children:[
-      new docx.TableCell({ children:[ new docx.Paragraph("Visa Conducteur / Entreprise
-
-Nom : ______________________    Signature : ______________________") ]}),
-      new docx.TableCell({ children:[ new docx.Paragraph("Visa Client / MOA
-
-Nom : ______________________    Signature : ______________________") ]})
+      new docx.TableCell({ children:[ new docx.Paragraph("Visa Conducteur / Entreprise\n\nNom : ______________________    Signature : ______________________") ]}),
+      new docx.TableCell({ children:[ new docx.Paragraph("Visa Client / MOA\n\nNom : ______________________    Signature : ______________________") ]})
     ]}) ]}));
 
     const wordDoc = new docx.Document({ sections:[{ children: parts }] });
