@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CR Chantier – Export Word (iPhone OK)</title>
+<style>
+  :root{--bg:#0b0d10;--ink:#e9eef7;--muted:#a9b4c0;--card:#14181d;--line:#26303a;--acc:#4ea1ff}
+  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0b0d10,rgba(11,13,16,.85));border-bottom:1px solid #1e242b}
+  header .row{max-width:960px;margin:auto;padding:.8rem 1rem;display:flex;gap:.75rem;align-items:center}
+  header h1{margin:0;font-size:1rem}
+  main{max-width:960px;margin:auto;padding:1rem;display:grid;gap:1rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem}
+  label{display:block;color:var(--muted);font-size:.9rem;margin:.35rem 0 .2rem}
+  input,textarea,button{width:100%;background:#0f1317;border:1px solid var(--line);color:var(--ink);padding:.7rem;border-radius:12px}
+  textarea{min-height:100px;resize:vertical}
+  .row{display:grid;gap:.75rem}
+  @media(min-width:720px){.row{grid-template-columns:1fr 1fr}}
+  .items{display:grid;gap:.75rem}
+  .item{border:1px dashed #2a3440;border-radius:12px;padding:.8rem}
+  .item h4{margin:.2rem 0 .6rem;font-size:1rem}
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem}
+  .thumb img{width:100%;height:110px;object-fit:cover;border-radius:10px;border:1px solid #2a3440}
+  .actions{display:flex;gap:.5rem;flex-wrap:wrap}
+  .btn.primary{background:var(--acc);border-color:var(--acc);color:#001a33}
+  .btn.warn{background:#ffb020;border-color:#ffb020;color:#331f00}
+  .muted{color:var(--muted);font-size:.9rem}
+  #toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:.55rem .9rem;border-radius:10px;display:none}
+  .btn[disabled]{opacity:.6;filter:grayscale(1);cursor:not-allowed}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>CR Chantier – Second œuvre (Word)</h1>
+    <div style="margin-left:auto" class="actions">
+      <button id="btnExport" class="btn primary" style="width:auto" disabled>Chargement…</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="row">
+      <div>
+        <label>Nom du chantier</label>
+        <input id="siteName" placeholder="Ex. SALVIGNOL – Appartement T3">
+      </div>
+      <div>
+        <label>Date</label>
+        <input id="crDate" type="date">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Client</label>
+        <input id="clientName" placeholder="Nom du client / Société">
+      </div>
+      <div>
+        <label>Conducteur</label>
+        <input id="leader" placeholder="Nom du conducteur de travaux">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3 style="margin:0 0 .5rem">Ajouter un lot (poste) à la suite</h3>
+    <div class="row">
+      <div>
+        <label>Nom du lot / poste</label>
+        <input id="lotName" placeholder="Ex. Électricité, Plomberie, Peinture...">
+      </div>
+      <div>
+        <label>Échéance / délai (facultatif)</label>
+        <input id="deadline" type="date">
+      </div>
+    </div>
+    <label>Commentaire</label>
+    <textarea id="comment" placeholder="Ex. Déplacer le point lumineux de 30 cm vers la gauche."></textarea>
+    <label>Photos du lot (0 à 6)</label>
+    <input id="photos" type="file" accept="image/*" capture="environment" multiple>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="actions" style="margin-top:.75rem">
+      <button id="btnAdd" class="btn primary">➕ Ajouter ce lot au CR</button>
+      <button id="btnReset" class="btn warn">Réinitialiser</button>
+    </div>
+    <p class="muted" style="margin:.5rem 0 0">Ajoute autant de lots que nécessaire. Ils seront exportés **dans l'ordre**.</p>
+  </section>
+
+  <section class="card">
+    <h3 style="margin:0 0 .5rem">Lots saisis</h3>
+    <div id="items" class="items"></div>
+    <p class="muted">Astuce : “Modifier” pour reprendre un lot ; “Supprimer” pour l’enlever.</p>
+  </section>
+</main>
+
+<div id="toast">Génération du Word…</div>
+
+<!-- Charge docx avec fallback (3 CDN) -->
+<script>
+window.__docxReady = false;
+(async function loadDocx(){
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.js",
+    "https://unpkg.com/docx@8.5.0/build/index.umd.js"
+  ];
+  for (const u of urls){
+    try{
+      await new Promise((res, rej)=>{
+        const s=document.createElement("script");
+        s.src=u; s.defer=true;
+        s.onload=()=>res();
+        s.onerror=()=>rej(new Error("fail "+u));
+        document.head.appendChild(s);
+      });
+      if (window.docx && window.docx.Document){ window.__docxReady = true; break; }
+    }catch(e){}
+  }
+})();
+</script>
+
+<script>
+const $ = s=>document.querySelector(s);
+const state = { header:{siteName:"",crDate:"",clientName:"",leader:""}, items:[], bufferPhotos:[] };
+const btnExport = $("#btnExport");
+const toast = $("#toast");
+function showToast(msg){ toast.textContent=msg; toast.style.display="block"; setTimeout(()=>toast.style.display="none", 1800); }
+
+function waitForDocx(timeoutMs=10000){
+  return new Promise((resolve, reject)=>{
+    const start = Date.now();
+    const tick = ()=>{
+      if (window.__docxReady && window.docx && window.docx.Document) return resolve(window.docx);
+      if (Date.now() - start > timeoutMs) return reject(new Error("docx non chargé"));
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
+/* Active le bouton quand la lib est prête */
+waitForDocx().then(()=>{
+  btnExport.textContent = "Exporter en Word";
+  btnExport.disabled = false;
+}).catch(()=>{
+  btnExport.textContent = "Réessayer (lib en cours)";
+  btnExport.disabled = false;
+});
+
+/* Photos preview */
+$("#photos").addEventListener("change",(e)=>{
+  const wrap=$("#thumbs"); wrap.innerHTML=""; state.bufferPhotos=[];
+  Array.from(e.target.files).slice(0,6).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{ const src=ev.target.result; state.bufferPhotos.push(src);
+      const d=document.createElement("div"); d.className="thumb"; d.innerHTML=`<img src="${src}">`; wrap.appendChild(d); };
+    r.readAsDataURL(file);
+  });
+});
+
+/* Ajouter / éditer */
+$("#btnAdd").addEventListener("click", ()=>{
+  const lot=$("#lotName").value.trim(); if(!lot){ alert("Nom du lot requis."); return; }
+  const it={ id:Date.now().toString(36), lot, comment:$("#comment").value.trim(), deadline:$("#deadline").value, photos:[...state.bufferPhotos] };
+  state.items.push(it);
+  state.bufferPhotos=[]; $("#thumbs").innerHTML=""; $("#lotName").value=""; $("#comment").value=""; $("#deadline").value=""; $("#photos").value="";
+  renderItems();
+});
+$("#btnReset").addEventListener("click", ()=>{ state.bufferPhotos=[]; $("#thumbs").innerHTML=""; $("#comment").value=""; $("#deadline").value=""; $("#lotName").value=""; $("#photos").value=""; });
+
+function renderItems(){
+  const box=$("#items"); box.innerHTML="";
+  state.items.forEach((it,idx)=>{
+    const d=it.deadline?new Date(it.deadline).toLocaleDateString("fr-FR"):"—";
+    const card=document.createElement("div"); card.className="item";
+    card.innerHTML=`
+      <h4>${idx+1}. ${it.lot}</h4>
+      <div class="muted">Délai : ${d}</div>
+      <div style="white-space:pre-wrap;margin:.35rem 0">${it.comment||"—"}</div>
+      <div class="thumbs" style="margin-top:.35rem">${(it.photos||[]).map(p=>`<div class="thumb"><img src="${p}"></div>`).join("")}</div>
+      <div class="actions" style="margin-top:.6rem">
+        <button class="btn" data-act="edit" data-id="${it.id}">Modifier</button>
+        <button class="btn warn" data-act="del" data-id="${it.id}">Supprimer</button>
+      </div>`;
+    box.appendChild(card);
+  });
+  box.querySelectorAll("[data-act]").forEach(b=>b.onclick=e=>{
+    const id=e.currentTarget.dataset.id;
+    if(e.currentTarget.dataset.act==="del"){ state.items=state.items.filter(x=>x.id!==id); renderItems(); }
+    else{
+      const it=state.items.find(x=>x.id===id); if(!it) return;
+      $("#lotName").value=it.lot; $("#comment").value=it.comment; $("#deadline").value=it.deadline||""; $("#thumbs").innerHTML=""; state.bufferPhotos=[...it.photos];
+      it.photos.forEach(src=>{ const d=document.createElement("div"); d.className="thumb"; d.innerHTML=`<img src="${src}">`; $("#thumbs").appendChild(d); });
+      state.items=state.items.filter(x=>x.id!==id); renderItems(); window.scrollTo({top:0,behavior:"smooth"});
+    }
+  });
+}
+["siteName","crDate","clientName","leader"].forEach(id=> $("#"+id).addEventListener("input",()=> state.header[id]=$("#"+id).value ));
+
+/* Utils */
+async function dataURLToArrayBuffer(dataURL){ const res=await fetch(dataURL); const blob=await res.blob(); return await blob.arrayBuffer(); }
+
+/* Export DOCX */
+btnExport.addEventListener("click", async ()=>{
+  try{
+    btnExport.disabled = true;
+    btnExport.textContent = "Préparation…";
+    const docx = await waitForDocx().catch(()=>window.docx);
+    if(!docx || !docx.Document){ alert("La librairie Word n'est pas encore prête. Réessaie dans 2 secondes."); btnExport.disabled=false; btnExport.textContent="Exporter en Word"; return; }
+
+    if(!state.items.length){ alert("Ajoute au moins un lot avant l’export."); btnExport.disabled=false; btnExport.textContent="Exporter en Word"; return; }
+    showToast("Génération du Word…");
+    await new Promise(r=>setTimeout(r, 400));
+
+    const parts=[];
+    parts.push(new docx.Paragraph({ text:"COMPTE RENDU CHANTIER", heading:docx.HeadingLevel.HEADING_1, alignment:docx.AlignmentType.CENTER }));
+    parts.push(new docx.Paragraph({ text:"Second œuvre", alignment:docx.AlignmentType.CENTER }));
+    parts.push(new docx.Paragraph({}));
+
+    const H=state.header;
+    parts.push(new docx.Table({ rows:[
+      new docx.TableRow({ children:[
+        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({text:"Chantier : ",bold:true}), new docx.TextRun({text:H.siteName||"—"}) ]}) ] }),
+        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({text:"Client : ",bold:true}), new docx.TextRun({text:H.clientName||"—"}) ]}) ] })
+      ]}),
+      new docx.TableRow({ children:[
+        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({text:"Date : ",bold:true}), new docx.TextRun({text:(H.crDate||new Date().toLocaleDateString("fr-FR"))}) ]}) ] }),
+        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({text:"Conducteur : ",bold:true}), new docx.TextRun({text:H.leader||"—"}) ]}) ] })
+      ]})
+    ]}));
+    parts.push(new docx.Paragraph({}));
+
+    for(let i=0;i<state.items.length;i++){
+      const it=state.items[i]; const d=it.deadline?new Date(it.deadline).toLocaleDateString("fr-FR"):"—";
+      parts.push(new docx.Paragraph({ text:`${i+1}. ${it.lot}`, heading:docx.HeadingLevel.HEADING_2 }));
+      parts.push(new docx.Paragraph({ children:[ new docx.TextRun({text:"Délai : ",bold:true}), new docx.TextRun({text:d}) ]}));
+      parts.push(new docx.Paragraph({ children:[ new docx.TextRun({text:"Commentaire :",bold:true}) ]}));
+      parts.push(new docx.Paragraph({ text: it.comment || "—" }));
+      if((it.photos||[]).length){
+        parts.push(new docx.Paragraph({ children:[ new docx.TextRun({text:"Photos :",bold:true}) ]}));
+        for(let j=0;j<it.photos.length;j+=2){
+          const row=it.photos.slice(j,j+2); const cells=[];
+          for(const src of row){ const ab=await dataURLToArrayBuffer(src);
+            cells.push(new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.ImageRun({ data:ab, transformation:{ width:300, height:200 } }) ] }) ] }));
+          }
+          while(cells.length<2) cells.push(new docx.TableCell({ children:[ new docx.Paragraph(" ") ] }));
+          parts.push(new docx.Table({ rows:[ new docx.TableRow({ children:cells }) ] }));
+        }
+      }
+      parts.push(new docx.Paragraph({}));
+    }
+    parts.push(new docx.Table({ rows:[ new docx.TableRow({ children:[
+      new docx.TableCell({ children:[ new docx.Paragraph("Visa Conducteur / Entreprise
+
+Nom : ______________________    Signature : ______________________") ]}),
+      new docx.TableCell({ children:[ new docx.Paragraph("Visa Client / MOA
+
+Nom : ______________________    Signature : ______________________") ]})
+    ]}) ]}));
+
+    const wordDoc = new docx.Document({ sections:[{ children: parts }] });
+    const blob = await docx.Packer.toBlob(wordDoc);
+
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=(H.siteName||"CR-chantier")+".docx"; a.rel="noopener";
+    window.document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 3000);
+  }catch(err){
+    alert("Erreur export Word : " + (err?.message||err));
+    console.error(err);
+  } finally {
+    btnExport.disabled = false;
+    btnExport.textContent = "Exporter en Word";
+  }
+});
+</script>
+</body>
+</html>
